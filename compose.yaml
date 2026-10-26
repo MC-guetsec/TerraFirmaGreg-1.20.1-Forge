@@ -1,7 +1,8 @@
 # TerraFirmaGreg-Modern 0.13.16 (MC 1.20.1 / Forge 47.4.13)
 # 服务端由 itzg/minecraft-server 的 AUTO_CURSEFORGE 安装整合包，
-# 客户端整合包分发由 AutoModpack 5.0.0-rc.2 内置 HTTP 服务完成（端口 3001）。
-name: tfg-modern
+# 客户端整合包由 AutoModpack 5.0.0-rc.2 分发（默认 HOLEPUNCH 模式，复用 Minecraft 端口）。
+# 保留 version 键：老版本 docker-compose（v1）离开它会把文件当成 legacy 格式解析。
+version: "3.8"
 
 services:
   minecraft:
@@ -12,8 +13,7 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "${MC_PORT:-25565}:25565"   # Minecraft
-      - "${AMP_PORT:-3001}:3001"    # AutoModpack 客户端整合包分发（TLS）
+      - "${MC_PORT:-25565}:25565"
     environment:
       # ---------- 基础 ----------
       EULA: "TRUE"
@@ -27,13 +27,12 @@ services:
       # 镜像自带的排除表会通过 CurseForge API 逐个解析条目（本项目下会返回 403 而中断安装）；
       # 而且完整的 mod 集合必须留在服务端，客户端才能通过 AutoModpack 拿到与整合包一致的内容
       CF_EXCLUDE_INCLUDE_FILE: ""
-      # GregTech 会自改文件名，缺失时不要触发整包重装
-      # 服务端会主动移除「客户端专属 mod」，GregTech 也会自改 jar 名；
-      # 二者都会让安装器判定「整合包文件缺失」并重装整包，这里整体放开
+      # 客户端专属 mod 被移到 host-modpack、GregTech 会自改 jar 名，
+      # 都会让安装器判定「整合包文件缺失」并重装整包，这里整体放开
       CF_IGNORE_MISSING_FILES: |
         mods/*.jar
       # ---------- AutoModpack ----------
-      # 5.0.0-rc.2 不走 MODRINTH_PROJECTS，jar 由 ./data/mods/automodpack.jar 预置
+      # jar 通过 /mods 挂载由镜像复制进 /data/mods，不依赖 Modrinth 解析
       # ---------- JVM ----------
       INIT_MEMORY: "4G"
       MAX_MEMORY: "${MC_MEMORY:-10G}"
@@ -63,6 +62,12 @@ services:
     volumes:
       - ./data:/data
       - ./modpacks:/modpacks:ro
+      # AutoModpack jar：镜像启动时会把 /mods 下的东西复制进 /data/mods
+      - ./client/automodpack-5.0.0-rc.2.jar:/mods/automodpack.jar:ro
+      # 配置与「客户端专属 mod」入库，克隆后无需手工准备
+      - ./automodpack/server.conf:/data/automodpack/server.conf
+      # AutoModpack 会在 host-modpack 根下写 patch-notes.md，所以这个目录必须可写
+      - ./automodpack/host-modpack:/data/automodpack/host-modpack
     healthcheck:
       test: ["CMD", "mc-health"]
       interval: 60s
