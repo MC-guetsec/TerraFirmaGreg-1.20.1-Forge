@@ -29,12 +29,17 @@ vi .env                                  # 填 CF_API_KEY（https://console.curs
 mkdir -p modpacks
 cp /path/to/TerraFirmaGreg-Modern-0.13.16-curseforge.zip modpacks/    # 198MB，不在仓库里
 
-sudo chown -R 1000:1000 automodpack      # 容器以 uid 1000 运行，需要能回写 server.conf
+sudo chown -R 1000:1000 automodpack      # 容器以 uid 1000 运行，要能回写 host-modpack/patch-notes.md
 docker compose up -d
 docker compose logs -f minecraft
 ```
 
 `modpacks/` 里的 zip 必须自己准备——仓库不收录 198MB 的整合包原件。
+
+`automodpack/` 是从仓库克隆下来的，属主是克隆者（root 机器上就是 root），而容器里跑的是 uid 1000，
+所以第一次启动前必须 `chown -R 1000:1000 automodpack`。漏了这步的症状是启动日志出现
+`Failed to generate modpack: /data/automodpack/host-modpack/patch-notes.md`（`AccessDeniedException` 或
+`Read-only file system`），服务端起不来。`data/` 不用管，镜像会自己校正属主。
 
 首次启动有两件慢事，`start_period` 给了 45 分钟：
 

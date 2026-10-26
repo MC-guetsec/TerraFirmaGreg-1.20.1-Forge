@@ -66,7 +66,8 @@ services:
       - ./client/automodpack-5.0.0-rc.2.jar:/mods/automodpack.jar:ro
       # 配置与「客户端专属 mod」入库，克隆后无需手工准备
       - ./automodpack/server.conf:/data/automodpack/server.conf
-      # AutoModpack 会在 host-modpack 根下写 patch-notes.md，所以这个目录必须可写
+      # AutoModpack 会在 host-modpack 根下写 patch-notes.md，所以整个目录需要可写；
+      # 仓库里这些文件由克隆者持有，首次启动前要 chown 1000:1000（见 README）
       - ./automodpack/host-modpack:/data/automodpack/host-modpack
     healthcheck:
       test: ["CMD", "mc-health"]
