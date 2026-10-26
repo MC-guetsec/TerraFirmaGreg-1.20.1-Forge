@@ -49,7 +49,7 @@ services:
         -XX:+PerfDisableSharedMem
         -XX:+AlwaysPreTouch
       # ---------- server.properties ----------
-      MOTD: "TerraFirmaGreg-Modern 0.13.16"
+      MOTD: "WELCOME TO GUETSEC'S TerraFirmaGreg"
       DIFFICULTY: normal
       ONLINE_MODE: "FALSE"
       MAX_PLAYERS: "8"
