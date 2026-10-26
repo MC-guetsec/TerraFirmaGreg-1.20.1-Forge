@@ -1,0 +1,73 @@
+# TerraFirmaGreg-Modern 0.13.16 (MC 1.20.1 / Forge 47.4.13)
+# 服务端由 itzg/minecraft-server 的 AUTO_CURSEFORGE 安装整合包，
+# 客户端整合包分发由 AutoModpack 5.0.0-rc.2 内置 HTTP 服务完成（端口 3001）。
+name: tfg-modern
+
+services:
+  minecraft:
+    image: itzg/minecraft-server:java17
+    container_name: tfg-mc
+    restart: unless-stopped
+    # 保持 stdin 打开，才能在 docker attach 下用控制台输入指令
+    stdin_open: true
+    tty: true
+    ports:
+      - "${MC_PORT:-25565}:25565"   # Minecraft
+      - "${AMP_PORT:-3001}:3001"    # AutoModpack 客户端整合包分发（TLS）
+    environment:
+      # ---------- 基础 ----------
+      EULA: "TRUE"
+      TZ: "${TZ:-Asia/Shanghai}"
+      # ---------- 整合包来源 ----------
+      TYPE: AUTO_CURSEFORGE
+      CF_SLUG: "custom"
+      CF_MODPACK_ZIP: /modpacks/TerraFirmaGreg-Modern-0.13.16-curseforge.zip
+      CF_API_KEY: ${CF_API_KEY}
+      CF_PARALLEL_DOWNLOADS: "8"
+      # 镜像自带的排除表会通过 CurseForge API 逐个解析条目（本项目下会返回 403 而中断安装）；
+      # 而且完整的 mod 集合必须留在服务端，客户端才能通过 AutoModpack 拿到与整合包一致的内容
+      CF_EXCLUDE_INCLUDE_FILE: ""
+      # GregTech 会自改文件名，缺失时不要触发整包重装
+      # 服务端会主动移除「客户端专属 mod」，GregTech 也会自改 jar 名；
+      # 二者都会让安装器判定「整合包文件缺失」并重装整包，这里整体放开
+      CF_IGNORE_MISSING_FILES: |
+        mods/*.jar
+      # ---------- AutoModpack ----------
+      # 5.0.0-rc.2 不走 MODRINTH_PROJECTS，jar 由 ./data/mods/automodpack.jar 预置
+      # ---------- JVM ----------
+      INIT_MEMORY: "4G"
+      MAX_MEMORY: "${MC_MEMORY:-10G}"
+      JVM_XX_OPTS: >-
+        -XX:+UseG1GC
+        -XX:+ParallelRefProcEnabled
+        -XX:MaxGCPauseMillis=130
+        -XX:G1HeapRegionSize=8M
+        -XX:G1ReservePercent=15
+        -XX:InitiatingHeapOccupancyPercent=20
+        -XX:+PerfDisableSharedMem
+        -XX:+AlwaysPreTouch
+      # ---------- server.properties ----------
+      MOTD: "TerraFirmaGreg-Modern 0.13.16"
+      DIFFICULTY: normal
+      ONLINE_MODE: "FALSE"
+      MAX_PLAYERS: "8"
+      VIEW_DISTANCE: "10"
+      SIMULATION_DISTANCE: "8"
+      SPAWN_PROTECTION: "16"
+      # TFC 的出生点搜索 + 重度世界生成会长时间占满 tick，关掉看门狗避免被误杀
+      MAX_TICK_TIME: "-1"
+      # ---------- 其他 ----------
+      ENABLE_RCON: "FALSE"
+      ENABLE_QUERY: "FALSE"
+      SNOOPER_ENABLED: "FALSE"
+    volumes:
+      - ./data:/data
+      - ./modpacks:/modpacks:ro
+    healthcheck:
+      test: ["CMD", "mc-health"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      # 首次安装要下 276 个 mod + 解压 overrides，给足时间
+      start_period: 45m
+    stop_grace_period: 120s
