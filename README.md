@@ -81,10 +81,22 @@ AutoModpack 默认 `connection-mode: HOLEPUNCH`，mod 同步跑在登录握手�
 - `sodiumextras-forge-1.0.7-1.20.1.jar`（Sodium Extras）
 
 它们里面有客户端专用 `@Mod` 类，专用服务端加载会直接崩（`Attempted to load class ... for invalid dist
-DEDICATED_SERVER`）。移动而不是删除，客户端拿到的整合包因此仍然完整。
+DEDICATED_SERVER`）。所以这 4 个 CurseForge 项目 ID 写在 `compose.yaml` 的 `CF_EXCLUDE_MODS` 里，安装器根本不下载它们；
+客户端那份由 `automodpack/host-modpack/main/mods/` 提供，客户端拿到的整合包因此仍然完整。
 
-再加新的客户端 mod：先放进 `data/mods/`，启动一次，等它崩溃，崩溃报告里会写 `Mod File: /data/mods/xxx.jar`，
-把这个 jar 从 `data/mods/` 移到 `automodpack/host-modpack/main/mods/` 即可（AutoModpack 会自动把它发给客户端）。
+现在 `CF_EXCLUDE_MODS` = `823106`(Blur) `975120`(Cubes Without Borders) `270441`(ItemPhysic Lite) `558905`(Sodium Extras)。
+
+已经装过旧数据的机器（`data/mods` 里还留着这 4 个 jar）手工删一次即可，`mods/*.jar` 已在
+`CF_IGNORE_MISSING_FILES` 里，删掉不会触发重装：
+
+```bash
+rm -f data/mods/cwb-forge-*.jar data/mods/blur-forge-*.jar \
+      data/mods/ItemPhysicLite_*.jar data/mods/sodiumextras-*.jar
+```
+
+再加新的客户端 mod：先放进 `data/mods/` 启动一次，崩溃报告里会写 `Mod File: /data/mods/xxx.jar`；
+把这个 jar 移到 `automodpack/host-modpack/main/mods/`，并把它的 CurseForge 项目 ID 加进 `CF_EXCLUDE_MODS`
+（ID 可以在 CurseForge 页面 URL 的 `/mc-mods/<slug>/<id>` 里看到）。
 
 ## AutoModpack 配置
 

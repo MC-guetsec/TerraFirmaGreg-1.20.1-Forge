@@ -27,6 +27,9 @@ services:
       # 镜像自带的排除表会通过 CurseForge API 逐个解析条目（本项目下会返回 403 而中断安装）；
       # 而且完整的 mod 集合必须留在服务端，客户端才能通过 AutoModpack 拿到与整合包一致的内容
       CF_EXCLUDE_INCLUDE_FILE: ""
+      # 客户端专属 mod 不进服务端（客户端那份由 automodpack/host-modpack 提供）：
+      # Blur / Cubes Without Borders / ItemPhysic Lite / Sodium Extras
+      CF_EXCLUDE_MODS: "823106 975120 270441 558905"
       # 客户端专属 mod 被移到 host-modpack、GregTech 会自改 jar 名，
       # 都会让安装器判定「整合包文件缺失」并重装整包，这里整体放开
       CF_IGNORE_MISSING_FILES: |
