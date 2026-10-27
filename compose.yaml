@@ -14,6 +14,9 @@ services:
     tty: true
     ports:
       - "${MC_PORT:-25565}:25565"
+      # 语音聊天（Simple Voice Chat）走 UDP，端口由 data/config/voicechat/voicechat-server.properties
+      # 的 port 决定（当前 24454）；改那个值要同步改这里，客户端始终按服务端配置的端口连。
+      - "24454:24454/udp"
     environment:
       # ---------- 基础 ----------
       EULA: "TRUE"

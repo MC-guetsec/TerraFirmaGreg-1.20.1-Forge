@@ -69,10 +69,14 @@ docker compose down -v                    # 连数据一起删（危险）
 | 端口 | 用途 |
 | --- | --- |
 | 25565/tcp | Minecraft 游戏 + AutoModpack 分发 |
+| 24454/udp | 语音聊天（Simple Voice Chat） |
 
 AutoModpack 默认 `connection-mode: HOLEPUNCH`，mod 同步跑在登录握手内，复用 Minecraft 端口，
 **不额外监听端口**，所以不需要发布 3001。只有改成 `HTTP` / `MAGIC` 模式时才要设 `bind-port` 并在
 `compose.yaml` 里加端口映射。
+
+语音聊天的 UDP 端口来自 `data/config/voicechat/voicechat-server.properties` 的 `port=24454`，客户端是按
+服务端配置的这个端口去连的，所以容器内外要保持 24454；真要换端口得同时改配置文件和 `compose.yaml` 的映射。
 
 ## 客户端专属 mod
 
@@ -245,3 +249,14 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
   降级同理，旧版本的 `data/libraries/net/minecraftforge/forge/1.20.1-*` 目录留着不影响运行。
 - `ONLINE_MODE=FALSE`：离线模式，局域网验证用。要只允许正版账号就把 `compose.yaml` 里改成 `"TRUE"`。
 - 世界类型不需要 `LEVEL_TYPE`：TFC 把 `tfc:overworld` 追加进了 `minecraft:normal` 世界预设，默认世界就是 TFC 地形。
+
+## 日志里哪些报错可以不管
+
+- `Attempted to load class ... for invalid dist DEDICATED_SERVER` / `ClassMetadataNotFoundException:
+  net.minecraft.client.renderer.RenderType`（ModernFix 的 `ClassInfoManager.doClear` 审计）：服务端上加载客户端
+  类是正常探测失败，不影响启动。
+- `Failed to process update information`（Forge Version Check）：服务端访问不了 raw.githubusercontent.com，只是版本检查。
+- `Tried to set output item stack that doesn't exist`（GregTech，`tfg:` 材料没有对应的 nugget 形态）：整合包自带的配方
+  配置产物，不是服务端问题。
+- 真要看致命错误只认这几个：`[main/ERROR] ... Failed to load class`、崩溃报告里的 `Mod File: /data/mods/xxx.jar`、
+  `LoadingFailedException`、`Minecraft server failed`。
