@@ -1,6 +1,6 @@
 # TerraFirmaGreg-Modern 0.13.16 服务端
 
-Minecraft **1.20.1** + **Forge 47.4.13**，整合包 `TerraFirmaGreg-Modern-0.13.16`（CurseForge 客户端包，276 个文件，
+Minecraft **1.20.1** + **Forge 47.4.28**，整合包 `TerraFirmaGreg-Modern-0.13.16`（CurseForge 客户端包，276 个文件，
 含 GregTech Modern / TerraFirmaCraft / KubeJS 脚本）。
 
 - 服务端镜像：`itzg/minecraft-server:java17`（Forge 47.x / MC 1.20.1 需要 Java 17）
@@ -45,7 +45,7 @@ docker compose logs -f minecraft
 
 首次启动有两件慢事，`start_period` 给了 45 分钟：
 
-1. 从 CurseForge 拉 276 个文件（`CF_PARALLEL_DOWNLOADS=8`），装 Forge 47.4.13；
+1. 从 CurseForge 拉 276 个文件（`CF_PARALLEL_DOWNLOADS=8`），装 Forge 47.4.28（`CF_MOD_LOADER_VERSION` 覆盖整合包声明的 47.4.13）；
 2. AutoModpack 首次生成整包（全量算 SHA1 + 打包），日志是 `Modpack generation completed!`。
 
 看到 `Done (XXs)! For help, type "help"` 即启动完成。
@@ -174,7 +174,7 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
 
 **A. 走 AutoModpack（推荐，永远和服务端一致）**
 
-1. 装 Forge 1.20.1（47.4.13）；
+1. 装 Forge 1.20.1（47.4.28，与服务端一致）；
 2. 把 `client/automodpack-5.0.0-rc.2.jar` 丢进 `.minecraft/mods/`；
 3. 启动游戏，直连服务器 IP:25565，连上后提示同步整包，确认后自动下载，重启游戏生效。
 
@@ -203,5 +203,9 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
   要重新校验可用 `CF_FORCE_SYNCHRONIZE=true` 临时启动一次。
 - `CF_EXCLUDE_INCLUDE_FILE=""`（关掉镜像自带的排除表）：镜像默认排除表会通过 CurseForge API 逐个解析条目，
   本项目下返回 403 直接中断安装；而且完整的 mod 集合必须留在服务端，客户端才能通过 AutoModpack 拿到一致内容。
+- `CF_MOD_LOADER_VERSION: "47.4.28"` + `CF_FORCE_REINSTALL_MODLOADER: "true"`：整合包 manifest 声明的是
+  Forge 47.4.13，这里对齐玩家客户端使用的 47.4.28。改这个值时 `CF_FORCE_REINSTALL_MODLOADER` 必须同时为 `true`，
+  否则安装器认为 loader 已就绪会跳过重装；生效后 `data/run.sh` 里指向 `libraries/net/minecraftforge/forge/1.20.1-47.4.28/`。
+  降级同理，旧版本的 `data/libraries/net/minecraftforge/forge/1.20.1-*` 目录留着不影响运行。
 - `ONLINE_MODE=FALSE`：离线模式，局域网验证用。要只允许正版账号就把 `compose.yaml` 里改成 `"TRUE"`。
 - 世界类型不需要 `LEVEL_TYPE`：TFC 把 `tfc:overworld` 追加进了 `minecraft:normal` 世界预设，默认世界就是 TFC 地形。
