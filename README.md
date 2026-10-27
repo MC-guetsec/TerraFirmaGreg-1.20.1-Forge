@@ -5,7 +5,7 @@ Minecraft **1.20.1** + **Forge 47.4.28**，整合包 `TerraFirmaGreg-Modern-0.13
 
 - 服务端镜像：`itzg/minecraft-server:java17`（Forge 47.x / MC 1.20.1 需要 Java 17）
 - 整合包安装：`TYPE=AUTO_CURSEFORGE` + `CF_SLUG=custom` + `CF_MODPACK_ZIP`（直接吃本地客户端 zip，overrides 也会解压）
-- 客户端 mod 分发：**AutoModpack 5.0.0-rc.2**，服务端把整包托管出去，带 AutoModpack 的客户端连上后自动同步成
+- 客户端 mod 分发：**AutoModpack 4.0.7**，服务端把整包托管出去，带 AutoModpack 的客户端连上后自动同步成
   与服务端完全一致的 mod / config，不需要玩家自己装整合包
 
 ## 目录
@@ -14,13 +14,13 @@ Minecraft **1.20.1** + **Forge 47.4.28**，整合包 `TerraFirmaGreg-Modern-0.13
 compose.yaml                            # 全部编排
 .env / .env.example                     # CF_API_KEY / 内存 / 端口（.env 不进 git）
 modpacks/*.zip                          # 整合包原件，只读挂进容器 /modpacks（不进 git，需自己放）
-automodpack/server.conf                 # AutoModpack 服务端配置，挂到 /data/automodpack/server.conf
+automodpack/automodpack-server.json     # AutoModpack 服务端配置，挂到 /data/automodpack/automodpack-server.json
 automodpack/host-modpack/main/mods/*.jar# 发给客户端的 jar：客户端专属 mod + createdeco / sandworm 修复版
 scripts/patch-createdeco.sh             # 重新生成 createdeco 修复版 jar（见「createdeco 大写贴图修复」）
 scripts/patch-sandworm.sh               # 重新生成 sandworm 修复版 jar（见「sandworm 大写特效修复」）
-client/automodpack-5.0.0-rc.2.jar       # 玩家用的 bootstrap jar；同时挂到 /mods 供镜像复制进 /data/mods
+client/automodpack-mc1.20.1-forge-4.0.7.jar # 玩家用的 jar（与服务端同一个文件）；同时挂到 /mods 供镜像复制进 /data/mods
 data/                                   # 容器 /data，服务端运行时数据（不进 git）
-                                        #   └─ automodpack/credentials/  TLS 证书与私钥（运行时生成或自己放，见「TLS 证书」）
+                                        #   └─ automodpack/.private/  TLS 证书 cert.crt 与私钥 key.pem（运行时生成或自己放，见「TLS 证书」）
 ```
 
 ## 首次部署
@@ -32,7 +32,7 @@ vi .env                                  # 填 CF_API_KEY（https://console.curs
 mkdir -p modpacks
 cp /path/to/TerraFirmaGreg-Modern-0.13.16-curseforge.zip modpacks/    # 198MB，不在仓库里
 
-sudo chown -R 1000:1000 automodpack      # 容器以 uid 1000 运行，要能回写 host-modpack/patch-notes.md
+sudo chown -R 1000:1000 automodpack      # 容器以 uid 1000 运行，要能回写 host-modpack/automodpack-content.json
 docker compose up -d
 docker compose logs -f minecraft
 ```
@@ -41,13 +41,13 @@ docker compose logs -f minecraft
 
 `automodpack/` 是从仓库克隆下来的，属主是克隆者（root 机器上就是 root），而容器里跑的是 uid 1000，
 所以第一次启动前必须 `chown -R 1000:1000 automodpack`。漏了这步的症状是启动日志出现
-`Failed to generate modpack: /data/automodpack/host-modpack/patch-notes.md`（`AccessDeniedException` 或
+`Failed to generate modpack: /data/automodpack/host-modpack/automodpack-content.json`（`AccessDeniedException` 或
 `Read-only file system`），服务端起不来。`data/` 不用管，镜像会自己校正属主。
 
 首次启动有两件慢事，`start_period` 给了 45 分钟：
 
 1. 从 CurseForge 拉 276 个文件（`CF_PARALLEL_DOWNLOADS=8`），装 Forge 47.4.28（`CF_MOD_LOADER_VERSION` 覆盖整合包声明的 47.4.13）；
-2. AutoModpack 首次生成整包（全量算 SHA1 + 打包），日志是 `Modpack generation completed!`。
+2. AutoModpack 首次生成整包（全量算 SHA1），日志是 `Modpack generated! took ...`。
 
 看到 `Done (XXs)! For help, type "help"` 即启动完成。
 
@@ -71,9 +71,10 @@ docker compose down -v                    # 连数据一起删（危险）
 | 25565/tcp | Minecraft 游戏 + AutoModpack 分发 |
 | 24454/udp | 语音聊天（Simple Voice Chat） |
 
-AutoModpack 默认 `connection-mode: HOLEPUNCH`，mod 同步跑在登录握手内，复用 Minecraft 端口，
-**不额外监听端口**，所以不需要发布 3001。只有改成 `HTTP` / `MAGIC` 模式时才要设 `bind-port` 并在
-`compose.yaml` 里加端口映射。
+AutoModpack 4.0.7 的 `bindPort` 是 `-1`（配在 `automodpack/automodpack-server.json` 里），日志会打印
+`Hosting modpack on Minecraft port`：分发协议在同一端口上用 `AMMH` 魔数包头区分，TLS 也走这个端口，
+所以 **不需要额外发布端口**。只有把 `bindPort` 改成具体值（如 3001）时，mod 才会另开监听，
+那时才要在 `compose.yaml` 里加端口映射并同步 `portToSend`。
 
 语音聊天的 UDP 端口来自 `data/config/voicechat/voicechat-server.properties` 的 `port=24454`，客户端是按
 服务端配置的这个端口去连的，所以容器内外要保持 24454；真要换端口得同时改配置文件和 `compose.yaml` 的映射。
@@ -171,22 +172,26 @@ scripts/patch-sandworm.sh            # 默认读 data/mods/sandworm_mod-*.jar，
 
 ## AutoModpack 配置
 
-`automodpack/server.conf` 已经调过：
+`automodpack/automodpack-server.json` 已经调过（4.0.7 的 JSON 配置，键名驼峰）：
 
-- `name` = `TerraFirmaGreg-Modern 0.13.16`
-- `from-server` 在 `mods/*.jar`、`kubejs/**` 之外补了 `config/**`、`defaultconfigs/**`、`tacz/**`、
-  `resourcepacks/**`、`shaderpacks/**`，保证客户端拿到和整合包一致的配置与资源
-- `kubejs/server_scripts/**` 在 `exclude` 里（纯服务端脚本）
-- `auto-exclude-server-side-mods: DISABLED`（不按 mod 元数据裁剪，避免把客户端需要的 jar 排掉）
-- `require-modpack: true`（没装 AutoModpack 的客户端会被提示去装）
+- `modpackName` = `TerraFirmaGreg-Modern 0.13.16`
+- `syncedFiles` 在默认的 `/mods/*.jar`、`/kubejs/**`、`/emotes/*` 之外补了 `/config/**`、
+  `/defaultconfigs/**`、`/tacz/**`、`/resourcepacks/**`、`/shaderpacks/**`，保证客户端拿到和整合包一致的配置与资源
+- `!/kubejs/server_scripts/**`（纯服务端脚本不下发）、`!/mods/automodpack*.jar`（不把自身发给客户端）
+- `allowEditsInFiles` 为空：客户端改过的 config 会被服务端版本覆盖，保证所有人配置一致
+- `autoExcludeServerSideMods: false`（不按 mod 元数据裁剪，避免把客户端需要的 jar 排掉）
+- `requireAutoModpackOnClient: true`（没装 AutoModpack 的客户端会被提示去装）
+- `bindPort: -1` + `portToSend: -1`：不另开端口，分发与 TLS 都复用 25565（见「端口」）
+- `disableInternalTLS: false`：mod 自己管 TLS，证书见下一节
 
-改完 `docker compose restart minecraft` 生效。
+改完 `docker compose restart minecraft` 生效。`DO_NOT_CHANGE_IT` 是配置版本号，别动；
+4.0.7 读到缺失字段会自动补默认值，所以只改关心的键就行。
 
 ## TLS 证书
 
 AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
-`/data/automodpack/credentials/certificate.crt`、`/data/automodpack/credentials/private-key.pem`
-（即宿主机 `data/automodpack/credentials/`，不在 git 里）。
+`/data/automodpack/.private/cert.crt`、`/data/automodpack/.private/key.pem`
+（即宿主机 `data/automodpack/.private/`，不在 git 里）。
 
 - 首次启动时这两个文件不存在，mod 会自己生成一对自签证书，并在日志打印
   `Certificate fingerprint: <叶证书 SHA-256>`。自签证书能连，但客户端要么在弹窗里手动信任，
@@ -199,8 +204,8 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
 - 换证书后必须重启容器：`docker compose restart minecraft`，然后在日志确认
   `Certificate fingerprint:` 变成了新证书叶证书的 SHA-256（小写、无冒号）。启动约 3–5 分钟，
   AutoModpack 会重新校验整包。
-- 仓库里的 `automodpack/credentials/` 不是运行时目录（compose 只挂 `server.conf` 和 `host-modpack`），
-  放在那里不会生效。
+- 仓库里的 `automodpack/` 目录只挂了 `automodpack-server.json` 和 `host-modpack`，证书不放这里；
+  也不存在 `automodpack/credentials/` 这种路径（那是别的版本的布局）。
 - 公网 CA 证书有到期时间（当前证书 2027-01-06 到期），续期后要重新拷一次并重启；
   替换前建议先备份自签那对文件。
 
@@ -214,8 +219,11 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
 **A. 走 AutoModpack（推荐，永远和服务端一致）**
 
 1. 装 Forge 1.20.1（47.4.28，与服务端一致）；
-2. 把 `client/automodpack-5.0.0-rc.2.jar` 丢进 `.minecraft/mods/`；
+2. 把 `client/automodpack-mc1.20.1-forge-4.0.7.jar` 丢进 `.minecraft/mods/`；
 3. 启动游戏，直连服务器 IP:25565，连上后提示同步整包，确认后自动下载，重启游戏生效。
+
+> 之前发过别的版本（5.0.0-rc.x）的玩家，换 4.0.7 前要删掉旧的客户端状态目录（`.minecraft/automodpack/`
+> 以及版本隔离时的 `versions/<版本>/automodpack/`），否则会和旧版本的缓存打架。
 
 **B. 直接用 CurseForge 启动器**：搜 `TerraFirmaGreg-Modern` 0.13.16，装完再连。
 
@@ -225,8 +233,8 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
 2. `docker compose up -d`（安装器会重新对比安装）；
 3. 服务端 ready 后 AutoModpack 会重新生成整包，玩家下次连接自动增量更新。
 
-`data/mods/automodpack.jar` 由 `client/automodpack-5.0.0-rc.2.jar` 经 `/mods` 挂载自动复制，不需要手工放；
-`automodpack/host-modpack/` 在仓库里，也不会被整合包更新冲掉。
+`data/mods/automodpack.jar` 由 `client/automodpack-mc1.20.1-forge-4.0.7.jar` 经 `/mods` 挂载自动复制（镜像只在
+该文件不存在时复制），不需要手工放；`automodpack/host-modpack/` 在仓库里，也不会被整合包更新冲掉。
 
 升级后如果 `createdeco` 或 `sandworm_mod` 换了版本，要重跑一次 `scripts/patch-createdeco.sh` / `scripts/patch-sandworm.sh`
 （见「createdeco 大写贴图修复」「sandworm 大写特效修复」）；

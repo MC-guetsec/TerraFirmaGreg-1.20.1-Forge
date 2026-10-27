@@ -1,0 +1,42 @@
+{
+  "DO_NOT_CHANGE_IT": 2,
+  "modpackName": "TerraFirmaGreg-Modern 0.13.16",
+  "modpackHost": true,
+  "generateModpackOnStart": true,
+  "syncedFiles": [
+    "!/kubejs/server_scripts/**",
+    "/mods/*.jar",
+    "/config/**",
+    "/defaultconfigs/**",
+    "/tacz/**",
+    "/kubejs/**",
+    "/resourcepacks/**",
+    "/shaderpacks/**",
+    "!/mods/automodpack*.jar",
+    "/emotes/*"
+  ],
+  "allowEditsInFiles": [],
+  "forceCopyFilesToStandardLocation": [],
+  "nonModpackFilesToDelete": {},
+  "autoExcludeServerSideMods": false,
+  "autoExcludeUnnecessaryFiles": false,
+  "requireAutoModpackOnClient": true,
+  "nagUnModdedClients": false,
+  "nagMessage": "This server provides dedicated modpack through AutoModpack!",
+  "nagClickableMessage": "Click here to get the AutoModpack!",
+  "nagClickableLink": "https://modrinth.com/project/automodpack",
+  "bindAddress": "",
+  "bindPort": -1,
+  "addressToSend": "",
+  "portToSend": -1,
+  "disableInternalTLS": false,
+  "requireMagicPackets": false,
+  "updateIpsOnEveryStart": false,
+  "bandwidthLimit": 0,
+  "validateSecrets": true,
+  "secretLifetime": 336,
+  "selfUpdater": false,
+  "acceptedLoaders": [
+    "forge"
+  ]
+}

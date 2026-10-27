@@ -3,4 +3,4 @@ data/
 modpacks/*.zip
 quarantine/
 .pi/tasks/
-automodpack/host-modpack/patch-notes.md
+automodpack/host-modpack/automodpack-content.json

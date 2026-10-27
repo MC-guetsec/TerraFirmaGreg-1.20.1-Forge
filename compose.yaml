@@ -1,6 +1,6 @@
 # TerraFirmaGreg-Modern 0.13.16 (MC 1.20.1 / Forge 47.4.28)
 # 服务端由 itzg/minecraft-server 的 AUTO_CURSEFORGE 安装整合包，
-# 客户端整合包由 AutoModpack 5.0.0-rc.2 分发（默认 HOLEPUNCH 模式，复用 Minecraft 端口）。
+# 客户端整合包由 AutoModpack 4.0.7 分发（bindPort 为 -1 时复用 Minecraft 端口，无独立分发端口）。
 # 保留 version 键：老版本 docker-compose（v1）离开它会把文件当成 legacy 格式解析。
 version: "3.8"
 
@@ -73,9 +73,9 @@ services:
       - ./data:/data
       - ./modpacks:/modpacks:ro
       # AutoModpack jar：镜像启动时会把 /mods 下的东西复制进 /data/mods
-      - ./client/automodpack-5.0.0-rc.2.jar:/mods/automodpack.jar:ro
+      - ./client/automodpack-mc1.20.1-forge-4.0.7.jar:/mods/automodpack.jar:ro
       # 配置与「客户端专属 mod」入库，克隆后无需手工准备
-      - ./automodpack/server.conf:/data/automodpack/server.conf
+      - ./automodpack/automodpack-server.json:/data/automodpack/automodpack-server.json
       # AutoModpack 会在 host-modpack 根下写 patch-notes.md，所以整个目录需要可写；
       # 仓库里这些文件由克隆者持有，首次启动前要 chown 1000:1000（见 README）
       - ./automodpack/host-modpack:/data/automodpack/host-modpack
