@@ -15,8 +15,9 @@ compose.yaml                            # 全部编排
 .env / .env.example                     # CF_API_KEY / 内存 / 端口（.env 不进 git）
 modpacks/*.zip                          # 整合包原件，只读挂进容器 /modpacks（不进 git，需自己放）
 automodpack/server.conf                 # AutoModpack 服务端配置，挂到 /data/automodpack/server.conf
-automodpack/host-modpack/main/mods/*.jar# 发给客户端的 jar：客户端专属 mod + createdeco 修复版
+automodpack/host-modpack/main/mods/*.jar# 发给客户端的 jar：客户端专属 mod + createdeco / sandworm 修复版
 scripts/patch-createdeco.sh             # 重新生成 createdeco 修复版 jar（见「createdeco 大写贴图修复」）
+scripts/patch-sandworm.sh               # 重新生成 sandworm 修复版 jar（见「sandworm 大写特效修复」）
 client/automodpack-5.0.0-rc.2.jar       # 玩家用的 bootstrap jar；同时挂到 /mods 供镜像复制进 /data/mods
 data/                                   # 容器 /data，服务端运行时数据（不进 git）
                                         #   └─ automodpack/credentials/  TLS 证书与私钥（运行时生成或自己放，见「TLS 证书」）
@@ -130,6 +131,40 @@ scripts/patch-createdeco.sh          # 默认读 data/mods/createdeco-*.jar，�
 脚本会做原地改名（`zip -d` 删旧条目 + `zip -X` 加新条目），条目总数不变、其余条目字节不变，并打印 sha1。
 如果整合包升级后 createdeco 换了版本，脚本会报「两种文件名都不存在」，此时要重新确认新版里的大写贴图路径再改。
 
+## sandworm 大写特效修复
+
+`automodpack/host-modpack/main/mods/sandworm_mod-1.2.0.jar` 是**删掉三个残留特效文件**的 Desert Behemoths 1.2.0：
+
+```
+assets/sandworm_mod/effeks/Texture/LossOfBlood.efkefc
+assets/sandworm_mod/effeks/Texture/sandimpact.efkefc
+assets/sandworm_mod/effeks/Texture/slowersandimpact.efkefc
+```
+
+AAA Particles 的资源加载器会枚举 `effeks/**.efkefc|.efkpkg`，用 `createEffekName()` 把
+`effeks/xxx.efkefc` 裁成 `xxx` 再新建 ResourceLocation；它的 `MixinResourceLocation` 只让「以 `effeks/` 开头」
+的路径跳过字符校验，裁剪后的 `Texture/sandimpact` 不再以 `effeks/` 开头，大写字母于是触发校验，客户端在
+初始化资源重载阶段崩溃（不是进服后、也不是播放特效时）：
+
+```
+net.minecraft.ResourceLocationException: Non [a-z0-9/._-] character in path of location
+  at mod.chloeprime.aaaparticles.client.loader.EffekAssetLoader.createEffekName(EffekAssetLoader.java:210)
+```
+
+这三个文件是作者遗留在贴图目录里的副本：`sandworm_mod` 的代码只按 `sandimpact` / `sandsmoke` /
+`slowersandimpact` 取特效，`LossOfBlood` 整个整合包（含 kubejs、config、其他 jar）都没有引用，删掉不影响特效。
+`effeks/Texture/*.png` 这些大写贴图**不用改**：它们的路径仍以 `effeks/` 开头、校验被放行，
+而资源查找用的就是磁盘上的原始大小写。
+
+从原版 jar 重新生成（整合包升级、`data/` 重装后需要重跑）：
+
+```bash
+scripts/patch-sandworm.sh            # 默认读 data/mods/sandworm_mod-*.jar，输出到 host-modpack
+```
+
+脚本原地删除条目（`zip -d`，其余条目字节不变），校验 `unzip -t`、确认 `effeks/` 下不再有含大写的
+`.efkefc/.efkpkg`，并打印 sha1 与保留下来的特效列表。
+
 ## AutoModpack 配置
 
 `automodpack/server.conf` 已经调过：
@@ -189,7 +224,8 @@ AutoModpack 分发整合包时走 TLS，证书和私钥固定在容器的
 `data/mods/automodpack.jar` 由 `client/automodpack-5.0.0-rc.2.jar` 经 `/mods` 挂载自动复制，不需要手工放；
 `automodpack/host-modpack/` 在仓库里，也不会被整合包更新冲掉。
 
-升级后如果 `createdeco` 换了版本，要重跑一次 `scripts/patch-createdeco.sh`（见「createdeco 大写贴图修复」）；
+升级后如果 `createdeco` 或 `sandworm_mod` 换了版本，要重跑一次 `scripts/patch-createdeco.sh` / `scripts/patch-sandworm.sh`
+（见「createdeco 大写贴图修复」「sandworm 大写特效修复」）；
 新版本若已修掉大写文件名，脚本会提示并保留原样即可。
 
 ## 注意
